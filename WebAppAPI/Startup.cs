@@ -43,6 +43,7 @@ namespace WebAppAPI
 
             //Register repositories
             services.AddTransient<IRepository<Message>, MessageRepo>();
+            services.AddTransient<IUpdateMessageRepo<Message>, MessageRepo>();
             services.AddTransient<IRepository<Notification>, NotificationRepo>();
 
             //Register services

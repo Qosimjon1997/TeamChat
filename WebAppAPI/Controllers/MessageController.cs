@@ -2,6 +2,7 @@
 using BusinessLayer.Interfaces;
 using DataLayer.Dtos.MessageDtos;
 using DataLayer.Models;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.Mvc;
 using System;
 using System.Collections.Generic;
@@ -14,6 +15,7 @@ namespace WebAppAPI.Controllers
     public class MessageController : ControllerBase
     {
         private readonly IMessageService _messageService;
+
         private readonly IMapper _mapper;
 
         public MessageController(IMessageService messageService, IMapper mapper)
@@ -30,13 +32,14 @@ namespace WebAppAPI.Controllers
             return Ok(_mapper.Map<IEnumerable<MessageReadDto>>(messageItems));
         }
 
+        
         [HttpPost]
         [Route("addmessage")]
         public async Task<ActionResult<MessageReadDto>> AddMessage(MessageCreateDto messageCreateDto)
         {
             var messageModel = _mapper.Map<Message>(messageCreateDto);
             bool answare = await _messageService.AddMessage(messageModel);
-            if(answare)
+            if (answare)
             {
                 return Ok(messageModel);
             }
@@ -45,6 +48,7 @@ namespace WebAppAPI.Controllers
                 return BadRequest();
             }
         }
+
 
     }
 }

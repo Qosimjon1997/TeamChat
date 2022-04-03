@@ -1,6 +1,7 @@
 ﻿using DataLayer.Data;
 using DataLayer.IRepositories;
 using DataLayer.Models;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace DataLayer.Repositories
 {
-    public class MessageRepo : IRepository<Message>
+    public class MessageRepo : IRepository<Message>, IUpdateMessageRepo<Message>
     {
         private readonly ApplicationDbContext _context;
 
@@ -47,5 +48,14 @@ namespace DataLayer.Repositories
             return true;
         }
 
+        public async Task<bool> UpdateMessageWithList(List<Message> messages)
+        {
+            foreach(var item in messages)
+            {
+                item.isRead = true;
+            }
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }
