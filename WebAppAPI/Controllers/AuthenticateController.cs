@@ -2,6 +2,9 @@
 using BusinessLayer.Hubs;
 using BusinessLayer.IHubs;
 using DataLayer.Dtos.ApplicationUserDtos;
+using DataLayer.Dtos.MessageDtos;
+using DataLayer.IRepositories;
+using DataLayer.Models;
 using DataLayer.Models.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -30,18 +33,20 @@ namespace WebAppAPI.Controllers
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
         private readonly IHubContext<ChatHub, IChatHub> _hubContext;
+        private readonly IRepository<Message> _message;
+        private readonly IUpdateMessageRepo<Message> _updateMessage;
 
-        public AuthenticateController(IHubContext<ChatHub, IChatHub> hubContext , IMapper mapper, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
+        public AuthenticateController(IUpdateMessageRepo<Message> updateMessage,IRepository<Message> message,IHubContext<ChatHub, IChatHub> hubContext , IMapper mapper, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole> roleManager, IConfiguration configuration)
         {
             this.userManager = userManager;
             this.roleManager = roleManager;
             _configuration = configuration;
             _mapper = mapper;
             _hubContext = hubContext;
+            _message = message;
+            _updateMessage = updateMessage;
         }
 
-        //[Authorize(Roles = UserRoles.Admin)]
-        //[Authorize(Roles = UserRoles.User)]
         [HttpGet]
         [Route("getallemployeeforadmin")]
         public async Task<ActionResult<IEnumerable<ApplicationUserReadDto>>> GetAllEmployeeForAdmin()
@@ -62,6 +67,49 @@ namespace WebAppAPI.Controllers
                             where a.RoleName != "Admin" && a.Id != id.ToString()
                             select a).ToList();
             return Ok(_mapper.Map<IEnumerable<ApplicationUserReadDto>>(finalusers));
+        }
+
+        [HttpGet]
+        [Route("getallemployeeforuserwithmessages")]
+        public async Task<ActionResult<IEnumerable<MessageAndUserDto>>> GetAllEmployeeForUserWithMessages(Guid id)
+        {
+            List<MessageAndUserDto> mydata = new List<MessageAndUserDto>();
+            List<string> mm = new List<string>();
+            var users = await userManager.Users.ToListAsync();
+            var finalusers = (from a in users
+                              where a.RoleName != "Admin" && Guid.Parse(a.Id) != id
+                              select a).ToList();
+
+            
+            var messages = await _message.GetAllAsync();
+            var finalMessages2 = (from item in messages
+                                  where item.ToMessage == id && item.isRead == false
+                                  group item by item.FromMessage into g
+                                  select new
+                                  {
+                                      g.Key
+                                  }).ToList();
+            
+            foreach(var v1 in finalMessages2)
+            {
+                mm.Add(v1.Key.ToString());
+            }
+
+            foreach (var v1 in finalusers)
+            {
+                MessageAndUserDto mock = new MessageAndUserDto();
+                mock.Id = v1.Id;
+                mock.FIO = v1.FIO;
+                mock.UserName = v1.UserName;
+                mock.isRead = mm.Contains(v1.Id.ToString());
+
+                mydata.Add(mock);
+            }
+            await _hubContext.Clients.All.AllUser();
+            mydata = (from a in mydata
+                      orderby !a.isRead, a.FIO
+                      select a).ToList();
+            return mydata;
         }
 
         [HttpGet]
@@ -87,6 +135,24 @@ namespace WebAppAPI.Controllers
             {
                 return BadRequest();
             }
+        }
+
+        [HttpPost]
+        [Route("updatemessagesofuser")]
+        public async Task<IActionResult> UpdateMessagesOfUser(ForUsersMessageDto model)
+        {
+            var messages = await _message.GetAllAsync();
+            var usermessages = (from a in messages
+                                where a.ToMessage == model.toId && a.FromMessage == model.fromId && a.isRead == false
+                                select a).ToList();
+
+            if(usermessages.Count>0)
+            {
+                bool query = await _updateMessage.UpdateMessageWithList(usermessages);
+                await _hubContext.Clients.All.AllUser();
+                return Ok();
+            }
+            return Ok();
         }
 
 
@@ -208,6 +274,7 @@ namespace WebAppAPI.Controllers
                 return false;
 
             await userManager.DeleteAsync(userExists);
+            await _hubContext.Clients.All.AllUser();
             return true;
         }
 

@@ -1,8 +1,10 @@
 ﻿using BusinessLayer.Hubs;
 using BusinessLayer.IHubs;
 using BusinessLayer.Interfaces;
+using DataLayer.Dtos.MessageDtos;
 using DataLayer.IRepositories;
 using DataLayer.Models;
+using Microsoft.AspNetCore.JsonPatch;
 using Microsoft.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
@@ -15,11 +17,13 @@ namespace BusinessLayer.Services
     {
         private readonly IRepository<Message> _message;
         private readonly IHubContext<ChatHub, IChatHub> _hubContext;
+        private readonly IUpdateMessageRepo<Message> _updateMessageRepo;
 
-        public MessageService(IRepository<Message> message, IHubContext<ChatHub, IChatHub> hubContext)
+        public MessageService(IRepository<Message> message, IUpdateMessageRepo<Message> updateMessageRepo, IHubContext<ChatHub, IChatHub> hubContext)
         {
             _message = message;
             _hubContext = hubContext;
+            _updateMessageRepo = updateMessageRepo;
         }
 
         public async Task<bool> AddMessage(Message message)
@@ -46,5 +50,13 @@ namespace BusinessLayer.Services
                      select items).ToList();
             return finalMessages;
         }
+
+        public async Task<bool> UpdateWithList(List<Message> messages)
+        {
+            return await _updateMessageRepo.UpdateMessageWithList(messages);
+        }
+
+
+
     }
 }

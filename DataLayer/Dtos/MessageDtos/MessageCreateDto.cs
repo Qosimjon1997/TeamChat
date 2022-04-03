@@ -9,5 +9,6 @@ namespace DataLayer.Dtos.MessageDtos
         public bool isFile { get; set; }
         public string MessageText { get; set; }
         public string FilePath { get; set; }
+        public bool isRead { get; set; }
     }
 }
